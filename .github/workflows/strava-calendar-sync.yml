@@ -1,0 +1,39 @@
+name: Strava → Google Calendar sync
+
+on:
+  schedule:
+    # Runs every 6 hours — change the cron expression to adjust frequency.
+    # Examples:
+    #   "0 * * * *"    → every hour
+    #   "0 */6 * * *"  → every 6 hours  (current)
+    #   "0 7 * * *"    → once a day at 07:00 UTC
+    - cron: "0 */6 * * *"
+  workflow_dispatch: # allows manual trigger from the GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/strava_calendar_requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/strava_calendar_requirements.txt
+
+      - name: Run sync
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          # Full JSON token objects stored as GitHub Secrets
+          STRAVA_TOKENS_JSON: ${{ secrets.STRAVA_TOKENS_JSON }}
+          GOOGLE_TOKENS_JSON: ${{ secrets.GOOGLE_TOKENS_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+        run: python scripts/strava_to_calendar.py

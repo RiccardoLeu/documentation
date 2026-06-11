@@ -47,6 +47,10 @@ INITIAL_ACTIVITY_COUNT = 30
 # Google Calendar ID — "primary" uses the default calendar
 CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "primary")
 
+# In CI, credentials are passed as JSON strings via env vars instead of files
+STRAVA_TOKENS_JSON = os.environ.get("STRAVA_TOKENS_JSON", "")
+GOOGLE_TOKENS_JSON = os.environ.get("GOOGLE_TOKENS_JSON", "")
+
 # Activity type → emoji prefix for event title
 ACTIVITY_EMOJI = {
     "Run": "🏃",
@@ -123,10 +127,13 @@ def strava_refresh_tokens(tokens: dict) -> dict:
 
 def get_strava_headers() -> dict:
     """Return Authorization headers with a valid access token."""
-    if not STRAVA_TOKEN_FILE.exists():
+    if STRAVA_TOKENS_JSON:
+        tokens = json.loads(STRAVA_TOKENS_JSON)
+    elif STRAVA_TOKEN_FILE.exists():
+        tokens = json.loads(STRAVA_TOKEN_FILE.read_text())
+    else:
         print("No Strava tokens found. Run with --authorize first.")
         sys.exit(1)
-    tokens = json.loads(STRAVA_TOKEN_FILE.read_text())
     tokens = strava_refresh_tokens(tokens)
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
@@ -171,7 +178,11 @@ def get_google_calendar_service():
     """Authenticate and return a Google Calendar API service client."""
     creds = None
 
-    if GOOGLE_TOKEN_FILE.exists():
+    if GOOGLE_TOKENS_JSON:
+        creds = Credentials.from_authorized_user_info(
+            json.loads(GOOGLE_TOKENS_JSON), GOOGLE_CALENDAR_SCOPES
+        )
+    elif GOOGLE_TOKEN_FILE.exists():
         creds = Credentials.from_authorized_user_file(
             str(GOOGLE_TOKEN_FILE), GOOGLE_CALENDAR_SCOPES
         )
